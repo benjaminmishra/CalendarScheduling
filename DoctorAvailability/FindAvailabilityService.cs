@@ -51,7 +51,7 @@ public class FindAvailabilityService : IFindAvailabilityService
                 continue;
             
             var dayOpenings = eventsForDay.Where(e => e.Type == EventType.Opening).OrderBy(o=>o.Start).ToList();
-            var dayAppointments = eventsForDay.Where(e => e.Type == EventType.Appointment).OrderBy(a=>a.Start).ToList();
+            var dayAppointments = MergeOverlappingAppointments(eventsForDay.Where(e => e.Type == EventType.Appointment).OrderBy(a=>a.Start).ToList());
 
             foreach (var opening in dayOpenings)
             {
@@ -96,19 +96,34 @@ public class FindAvailabilityService : IFindAvailabilityService
                     result[dayKey].Add(new Availability(interval.Start, interval.End));
                 }
             }
-            
         }
         
         return result;
     }
 
-    public IEnumerable<Event> MergeOverlappingAppointments(IEnumerable<Event> appointments)
+    private IEnumerable<Event> MergeOverlappingAppointments(List<Event> appointments)
     {
-        var result = new List<Event>();
+        var merged = new List<Event>();
         
-        foreach (var appointment in appointments)
+        if (!appointments.Any())
+            return Array.Empty<Event>();
+
+        var currentApp = appointments.First();
+        
+        foreach (var appointment in appointments.OrderBy(a => a.Start).Skip(1))
         {
-            
+            if (currentApp.End >= appointment.Start)
+            {
+                currentApp.End = appointment.End;
+            }
+            else
+            {
+                merged.Add(currentApp);
+                currentApp = appointment;
+            }
         }
+        
+        merged.Add(currentApp);
+        return merged;
     }
 }
